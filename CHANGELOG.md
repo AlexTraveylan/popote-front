@@ -1,9 +1,13 @@
 # Changelog
 
+## 0.2.1 — 2026-11-21
+
+- Stock : « + Nouvel article » pour suivre un nouvel article sans l'acheter, au choix juste avec « bientôt plus »
+  (comme le sel) ou avec la quantité.
+- Stock : suppression un par un en glissant l'article vers la gauche, annulable ; plus de « Tout supprimer ».
+
 ## 0.2.0 — 2026-11-21
 
-- Stock : mode « Supprimer » avec un bouton par article, « Tout supprimer » pour la famille affichée,
-  et annulation depuis le message de confirmation.
 - Recettes : saisons (🌱 ☀️ 🍂 ❄️) dans le formulaire, la fiche et les cartes ; filtre par saison.
 - Aujourd'hui : filtre par saison, les recettes de la saison en cours passent devant.
 - Nouvelle recette ChatGPT : choix de la saison visée.

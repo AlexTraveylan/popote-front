@@ -1,10 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useMemo, useState } from "react"
 
-import { api, type NewStockItem, runApi, type StockPatch } from "../api/client"
+import { api, type NewStockItem, type StockPatch } from "../api/client"
 import { useApiMutation, useStock } from "../api/hooks"
 import type { ShoppingChannel, StockCategory, StockItem, StockKind } from "../api/schemas"
 import { Sheet } from "../components/Sheet"
+import { SwipeToDelete } from "../components/SwipeToDelete"
 import { Badge, Chip, Empty, ErrorNote, Loading } from "../components/ui"
 import { daysBetween, expiryLabel } from "../lib/dates"
 import {
@@ -35,25 +35,44 @@ const restorable = (item: StockItem): NewStockItem => ({
   running_low: item.running_low,
 })
 
-const useRestore = () => {
-  const queryClient = useQueryClient()
-  return (items: readonly StockItem[]) =>
-    void Promise.all(items.map((item) => runApi(api.addStockItem(restorable(item))))).then(() =>
-      queryClient.invalidateQueries(),
-    )
-}
-
-function StockRow({ item, removing, onEdit }: { item: StockItem; removing: boolean; onEdit: () => void }) {
+function StockRow({
+  item,
+  open,
+  onOpenChange,
+  onEdit,
+}: {
+  item: StockItem
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onEdit: () => void
+}) {
   const { day, notify } = useApp()
-  const restore = useRestore()
-  const remove = useApiMutation(() => api.deleteStockItem(item.id))
   const update = useApiMutation((patch: StockPatch) => api.updateStockItem(item.id, patch))
   const runningLow = useApiMutation((value: boolean) => api.setRunningLow(item.id, value))
+  const remove = useApiMutation(() => api.deleteStockItem(item.id))
+  const restore = useApiMutation(() => api.addStockItem(restorable(item)))
   const expiringIn = item.expires_on ? daysBetween(day, item.expires_on) : null
   const step = stepFor(item.unit)
 
+  const deleteItem = () =>
+    remove.mutate(undefined, {
+      onSuccess: () =>
+        notify({
+          message: `${item.name} supprimé du stock.`,
+          actionLabel: "Annuler",
+          onAction: () => restore.mutate(),
+        }),
+    })
+
   return (
-    <li className={`stock-row ${item.needs_restock ? "needs" : ""}`}>
+    <SwipeToDelete
+      open={open}
+      label={item.name}
+      disabled={remove.isPending}
+      className={`stock-row ${item.needs_restock ? "needs" : ""}`}
+      onOpenChange={onOpenChange}
+      onDelete={deleteItem}
+    >
       <button type="button" className="stock-name" onClick={onEdit}>
         <strong>{item.name}</strong>
         {item.expires_on && expiringIn !== null && (
@@ -64,26 +83,7 @@ function StockRow({ item, removing, onEdit }: { item: StockItem; removing: boole
         {item.is_out && <Badge tone="bad">épuisé</Badge>}
         {item.channel !== "drive" && <Badge>{CHANNEL_LABELS[item.channel]}</Badge>}
       </button>
-      {removing && (
-        <button
-          type="button"
-          className="button danger small remove-item"
-          disabled={remove.isPending}
-          onClick={() =>
-            remove.mutate(undefined, {
-              onSuccess: () =>
-                notify({
-                  message: `${item.name} supprimé du stock.`,
-                  actionLabel: "Annuler",
-                  onAction: () => restore([item]),
-                }),
-            })
-          }
-        >
-          Supprimer
-        </button>
-      )}
-      {!removing && item.quantity !== null && (
+      {item.quantity !== null && (
         <div className="stepper compact">
           <button
             type="button"
@@ -104,38 +104,44 @@ function StockRow({ item, removing, onEdit }: { item: StockItem; removing: boole
           </button>
         </div>
       )}
-      {!removing && (
-        <label className="check low-check">
-          <input
-            type="checkbox"
-            checked={item.running_low}
-            onChange={(event) => runningLow.mutate(event.target.checked)}
-          />
-          bientôt plus
-        </label>
-      )}
-    </li>
+      <label className="check low-check">
+        <input
+          type="checkbox"
+          checked={item.running_low}
+          onChange={(event) => runningLow.mutate(event.target.checked)}
+        />
+        bientôt plus
+      </label>
+    </SwipeToDelete>
   )
 }
+
+type Tracking = "flag" | "quantity"
 
 type Draft = {
   name: string
   kind: StockKind
   category: StockCategory
   channel: ShoppingChannel
+  tracking: Tracking
   quantity: string
   unit: string
   expiresOn: string
+  runningLow: boolean
 }
+
+const defaultTracking = (kind: StockKind): Tracking => (kind === "ingredient" ? "quantity" : "flag")
 
 const draftFrom = (item: StockItem | null, kind: StockKind): Draft => ({
   name: item?.name ?? "",
   kind: item?.kind ?? kind,
   category: item?.category ?? DEFAULT_CATEGORY[kind],
   channel: item?.channel ?? (kind === "fruit" ? "marche" : "drive"),
+  tracking: item ? (item.quantity === null ? "flag" : "quantity") : defaultTracking(kind),
   quantity: item?.quantity === null || item?.quantity === undefined ? "" : String(item.quantity),
   unit: item?.unit ?? "",
   expiresOn: item?.expires_on ?? "",
+  runningLow: item?.running_low ?? false,
 })
 
 function StockItemSheet({
@@ -153,27 +159,29 @@ function StockItemSheet({
   const set = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }))
 
   const save = useApiMutation((value: Draft) => {
-    const quantity = Number.parseFloat(value.quantity.replace(",", "."))
-    const hasQuantity = Number.isFinite(quantity)
+    const parsed = Number.parseFloat(value.quantity.replace(",", "."))
+    const quantity = value.tracking === "quantity" && Number.isFinite(parsed) ? parsed : null
+    const expiresOn = value.tracking === "quantity" ? value.expiresOn : ""
     const common = {
       name: value.name.trim(),
       kind: value.kind,
       category: value.category,
       channel: value.channel,
-      unit: value.unit.trim() || null,
+      running_low: value.runningLow,
     }
     if (item === null) {
       return api.addStockItem({
         ...common,
-        quantity: hasQuantity ? quantity : null,
-        expires_on: value.expiresOn || null,
+        quantity,
+        unit: quantity === null ? null : value.unit.trim() || null,
+        expires_on: expiresOn || null,
       })
     }
     return api.updateStockItem(item.id, {
       ...common,
-      unit: common.unit ?? undefined,
-      ...(hasQuantity ? { quantity } : { clear_quantity: true }),
-      ...(value.expiresOn ? { expires_on: value.expiresOn } : { clear_expiry: true }),
+      unit: value.unit.trim() || undefined,
+      ...(quantity === null ? { clear_quantity: true } : { quantity }),
+      ...(expiresOn ? { expires_on: expiresOn } : { clear_expiry: true }),
     })
   })
   const remove = useApiMutation(() => api.deleteStockItem(item?.id ?? ""))
@@ -182,20 +190,27 @@ function StockItemSheet({
     event.preventDefault()
     save.mutate(draft, {
       onSuccess: (saved) => {
-        notify({ message: `${saved.name} enregistré.` })
+        notify({ message: item ? `${saved.name} enregistré.` : `${saved.name} est maintenant suivi.` })
         onClose()
       },
     })
   }
 
   return (
-    <Sheet title={item ? item.name : "Ajouter au stock"} onClose={onClose}>
+    <Sheet title={item ? item.name : "Nouvel article à suivre"} onClose={onClose}>
       <form className="form" onSubmit={submit}>
+        {item === null && (
+          <p className="hint">
+            Pour ajouter quelque chose que le foyer utilise, comme le sel ou la levure. Ce n'est pas un achat
+            : rien n'est compté dans les courses.
+          </p>
+        )}
         <label className="field">
           <span>Nom générique</span>
           <input
             id="stock-name"
             required
+            placeholder="Ex. levure boulangère"
             value={draft.name}
             onChange={(event) => set({ name: event.target.value })}
           />
@@ -208,7 +223,13 @@ function StockItemSheet({
               value={draft.kind}
               onChange={(event) => {
                 const next = event.target.value as StockKind
-                set({ kind: next, channel: next === "fruit" ? "marche" : draft.channel })
+                set({
+                  kind: next,
+                  channel: next === "fruit" ? "marche" : draft.channel,
+                  ...(item === null
+                    ? { tracking: defaultTracking(next), category: DEFAULT_CATEGORY[next] }
+                    : {}),
+                })
               }}
             >
               {STOCK_KINDS.map((current) => (
@@ -247,38 +268,70 @@ function StockItemSheet({
             ))}
           </select>
         </label>
-        <div className="field-row">
-          <label className="field">
-            <span>Quantité (vide = pas suivie)</span>
-            <input
-              id="stock-quantity"
-              inputMode="decimal"
-              value={draft.quantity}
-              onChange={(event) => set({ quantity: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Unité</span>
-            <input
-              id="stock-unit"
-              placeholder="g, kg, cl, piece…"
-              value={draft.unit}
-              onChange={(event) => set({ unit: event.target.value })}
-            />
-          </label>
-        </div>
-        <label className="field">
-          <span>À consommer avant</span>
+
+        <fieldset className="field">
+          <legend>Comment le suivre ?</legend>
+          <div className="chips">
+            <Chip active={draft.tracking === "flag"} onClick={() => set({ tracking: "flag" })}>
+              Juste « bientôt plus »
+            </Chip>
+            <Chip active={draft.tracking === "quantity"} onClick={() => set({ tracking: "quantity" })}>
+              Avec la quantité
+            </Chip>
+          </div>
+          <p className="hint">
+            {draft.tracking === "flag"
+              ? "Comme le sel : tu coches « bientôt plus » quand il faut en racheter."
+              : "La quantité baisse quand une recette l'utilise et remonte avec les courses."}
+          </p>
+        </fieldset>
+
+        {draft.tracking === "quantity" && (
+          <>
+            <div className="field-row">
+              <label className="field">
+                <span>Quantité à la maison</span>
+                <input
+                  id="stock-quantity"
+                  inputMode="decimal"
+                  value={draft.quantity}
+                  onChange={(event) => set({ quantity: event.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Unité</span>
+                <input
+                  id="stock-unit"
+                  placeholder="g, kg, cl, piece…"
+                  value={draft.unit}
+                  onChange={(event) => set({ unit: event.target.value })}
+                />
+              </label>
+            </div>
+            <label className="field">
+              <span>À consommer avant</span>
+              <input
+                id="stock-expiry"
+                type="date"
+                value={draft.expiresOn}
+                onChange={(event) => set({ expiresOn: event.target.value })}
+              />
+            </label>
+          </>
+        )}
+
+        <label className="check">
           <input
-            id="stock-expiry"
-            type="date"
-            value={draft.expiresOn}
-            onChange={(event) => set({ expiresOn: event.target.value })}
+            type="checkbox"
+            checked={draft.runningLow}
+            onChange={(event) => set({ runningLow: event.target.checked })}
           />
+          Bientôt plus : à mettre dans les prochaines courses
         </label>
+
         <ErrorNote error={save.error ?? remove.error} />
         <button type="submit" className="button primary" disabled={save.isPending}>
-          {item ? "Enregistrer" : "Ajouter"}
+          {item ? "Enregistrer" : "Suivre cet article"}
         </button>
         {item &&
           (confirmDelete ? (
@@ -299,48 +352,6 @@ function StockItemSheet({
   )
 }
 
-function BulkRemove({ items, label }: { items: readonly StockItem[]; label: string }) {
-  const { notify } = useApp()
-  const queryClient = useQueryClient()
-  const restore = useRestore()
-  const [confirming, setConfirming] = useState(false)
-  const [pending, setPending] = useState(false)
-
-  if (items.length === 0) return null
-
-  const removeAll = () => {
-    setPending(true)
-    void Promise.all(items.map((item) => runApi(api.deleteStockItem(item.id))))
-      .then(() => {
-        notify({
-          message: `${items.length} article${items.length > 1 ? "s" : ""} supprimé${items.length > 1 ? "s" : ""}.`,
-          actionLabel: "Annuler",
-          onAction: () => restore(items),
-        })
-      })
-      .finally(() => {
-        setPending(false)
-        setConfirming(false)
-        void queryClient.invalidateQueries()
-      })
-  }
-
-  return confirming ? (
-    <div className="bulk-remove">
-      <button type="button" className="button danger" disabled={pending} onClick={removeAll}>
-        Confirmer : supprimer {items.length} article{items.length > 1 ? "s" : ""}
-      </button>
-      <button type="button" className="button ghost" onClick={() => setConfirming(false)}>
-        Non
-      </button>
-    </div>
-  ) : (
-    <button type="button" className="button ghost bulk-remove" onClick={() => setConfirming(true)}>
-      Tout supprimer {label} ({items.length})
-    </button>
-  )
-}
-
 export function StockPage() {
   const stock = useStock()
   const [kind, setKind] = useState<StockKind>("ingredient")
@@ -348,7 +359,7 @@ export function StockPage() {
   const [query, setQuery] = useState("")
   const [editing, setEditing] = useState<StockItem | null>(null)
   const [adding, setAdding] = useState(false)
-  const [removing, setRemoving] = useState(false)
+  const [swipedId, setSwipedId] = useState<string | null>(null)
 
   const counts = useMemo(() => {
     const result = new Map<StockKind, number>()
@@ -371,14 +382,12 @@ export function StockPage() {
     return [...byCategory.entries()]
   }, [stock.data, kind, onlyToBuy, query])
 
-  const visibleItems = useMemo(() => groups.flatMap(([, items]) => items), [groups])
-
   return (
     <div className="page">
       <header className="page-head">
         <h1>Stock</h1>
         <button type="button" className="button primary" onClick={() => setAdding(true)}>
-          + Ajouter
+          + Nouvel article
         </button>
       </header>
 
@@ -397,7 +406,7 @@ export function StockPage() {
           </button>
         ))}
       </div>
-      <p className="hint">{KIND_HINTS[kind]}</p>
+      <p className="hint">{KIND_HINTS[kind]} Glisse un article vers la gauche pour le supprimer.</p>
 
       <div className="toolbar">
         <input
@@ -411,22 +420,7 @@ export function StockPage() {
         <Chip active={onlyToBuy} onClick={() => setOnlyToBuy(!onlyToBuy)}>
           À racheter
         </Chip>
-        <Chip active={removing} onClick={() => setRemoving(!removing)}>
-          {removing ? "Terminé" : "Supprimer"}
-        </Chip>
       </div>
-      {removing && (
-        <>
-          <p className="hint">
-            Touche « Supprimer » sur les articles à enlever du stock. Annulable quelques secondes.
-          </p>
-          <BulkRemove
-            key={`${kind}-${query}-${onlyToBuy}`}
-            items={visibleItems}
-            label={query || onlyToBuy ? "ceux affichés" : `« ${KIND_LABELS[kind]} »`}
-          />
-        </>
-      )}
 
       <ErrorNote error={stock.error} />
       {stock.isPending && <Loading />}
@@ -436,7 +430,13 @@ export function StockPage() {
           <h2 className="eyebrow">{CATEGORY_LABELS[category]}</h2>
           <ul className="stock-list">
             {items.map((item) => (
-              <StockRow key={item.id} item={item} removing={removing} onEdit={() => setEditing(item)} />
+              <StockRow
+                key={item.id}
+                item={item}
+                open={swipedId === item.id}
+                onOpenChange={(open) => setSwipedId(open ? item.id : null)}
+                onEdit={() => setEditing(item)}
+              />
             ))}
           </ul>
         </section>
