@@ -1,6 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { type FormEvent, useMemo, useState } from "react"
 
-import { api, type StockPatch } from "../api/client"
+import { api, type NewStockItem, runApi, type StockPatch } from "../api/client"
 import { useApiMutation, useStock } from "../api/hooks"
 import type { ShoppingChannel, StockCategory, StockItem, StockKind } from "../api/schemas"
 import { Sheet } from "../components/Sheet"
@@ -23,8 +24,29 @@ const STEP_BY_UNIT: Record<string, number> = { g: 50, ml: 50, cl: 5, kg: 0.25, l
 
 const stepFor = (unit: string | null): number => (unit ? (STEP_BY_UNIT[unit] ?? 1) : 1)
 
-function StockRow({ item, onEdit }: { item: StockItem; onEdit: () => void }) {
-  const { day } = useApp()
+const restorable = (item: StockItem): NewStockItem => ({
+  name: item.name,
+  kind: item.kind,
+  category: item.category,
+  channel: item.channel,
+  quantity: item.quantity,
+  unit: item.unit,
+  expires_on: item.expires_on,
+  running_low: item.running_low,
+})
+
+const useRestore = () => {
+  const queryClient = useQueryClient()
+  return (items: readonly StockItem[]) =>
+    void Promise.all(items.map((item) => runApi(api.addStockItem(restorable(item))))).then(() =>
+      queryClient.invalidateQueries(),
+    )
+}
+
+function StockRow({ item, removing, onEdit }: { item: StockItem; removing: boolean; onEdit: () => void }) {
+  const { day, notify } = useApp()
+  const restore = useRestore()
+  const remove = useApiMutation(() => api.deleteStockItem(item.id))
   const update = useApiMutation((patch: StockPatch) => api.updateStockItem(item.id, patch))
   const runningLow = useApiMutation((value: boolean) => api.setRunningLow(item.id, value))
   const expiringIn = item.expires_on ? daysBetween(day, item.expires_on) : null
@@ -42,7 +64,26 @@ function StockRow({ item, onEdit }: { item: StockItem; onEdit: () => void }) {
         {item.is_out && <Badge tone="bad">épuisé</Badge>}
         {item.channel !== "drive" && <Badge>{CHANNEL_LABELS[item.channel]}</Badge>}
       </button>
-      {item.quantity !== null && (
+      {removing && (
+        <button
+          type="button"
+          className="button danger small remove-item"
+          disabled={remove.isPending}
+          onClick={() =>
+            remove.mutate(undefined, {
+              onSuccess: () =>
+                notify({
+                  message: `${item.name} supprimé du stock.`,
+                  actionLabel: "Annuler",
+                  onAction: () => restore([item]),
+                }),
+            })
+          }
+        >
+          Supprimer
+        </button>
+      )}
+      {!removing && item.quantity !== null && (
         <div className="stepper compact">
           <button
             type="button"
@@ -63,14 +104,16 @@ function StockRow({ item, onEdit }: { item: StockItem; onEdit: () => void }) {
           </button>
         </div>
       )}
-      <label className="check low-check">
-        <input
-          type="checkbox"
-          checked={item.running_low}
-          onChange={(event) => runningLow.mutate(event.target.checked)}
-        />
-        bientôt plus
-      </label>
+      {!removing && (
+        <label className="check low-check">
+          <input
+            type="checkbox"
+            checked={item.running_low}
+            onChange={(event) => runningLow.mutate(event.target.checked)}
+          />
+          bientôt plus
+        </label>
+      )}
     </li>
   )
 }
@@ -244,15 +287,57 @@ function StockItemSheet({
               className="button danger"
               onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
             >
-              Confirmer : retirer {item.name} du stock
+              Confirmer : supprimer {item.name} du stock
             </button>
           ) : (
             <button type="button" className="button ghost" onClick={() => setConfirmDelete(true)}>
-              Retirer du stock
+              Supprimer du stock
             </button>
           ))}
       </form>
     </Sheet>
+  )
+}
+
+function BulkRemove({ items, label }: { items: readonly StockItem[]; label: string }) {
+  const { notify } = useApp()
+  const queryClient = useQueryClient()
+  const restore = useRestore()
+  const [confirming, setConfirming] = useState(false)
+  const [pending, setPending] = useState(false)
+
+  if (items.length === 0) return null
+
+  const removeAll = () => {
+    setPending(true)
+    void Promise.all(items.map((item) => runApi(api.deleteStockItem(item.id))))
+      .then(() => {
+        notify({
+          message: `${items.length} article${items.length > 1 ? "s" : ""} supprimé${items.length > 1 ? "s" : ""}.`,
+          actionLabel: "Annuler",
+          onAction: () => restore(items),
+        })
+      })
+      .finally(() => {
+        setPending(false)
+        setConfirming(false)
+        void queryClient.invalidateQueries()
+      })
+  }
+
+  return confirming ? (
+    <div className="bulk-remove">
+      <button type="button" className="button danger" disabled={pending} onClick={removeAll}>
+        Confirmer : supprimer {items.length} article{items.length > 1 ? "s" : ""}
+      </button>
+      <button type="button" className="button ghost" onClick={() => setConfirming(false)}>
+        Non
+      </button>
+    </div>
+  ) : (
+    <button type="button" className="button ghost bulk-remove" onClick={() => setConfirming(true)}>
+      Tout supprimer {label} ({items.length})
+    </button>
   )
 }
 
@@ -263,6 +348,7 @@ export function StockPage() {
   const [query, setQuery] = useState("")
   const [editing, setEditing] = useState<StockItem | null>(null)
   const [adding, setAdding] = useState(false)
+  const [removing, setRemoving] = useState(false)
 
   const counts = useMemo(() => {
     const result = new Map<StockKind, number>()
@@ -284,6 +370,8 @@ export function StockPage() {
     for (const item of items) byCategory.set(item.category, [...(byCategory.get(item.category) ?? []), item])
     return [...byCategory.entries()]
   }, [stock.data, kind, onlyToBuy, query])
+
+  const visibleItems = useMemo(() => groups.flatMap(([, items]) => items), [groups])
 
   return (
     <div className="page">
@@ -323,7 +411,22 @@ export function StockPage() {
         <Chip active={onlyToBuy} onClick={() => setOnlyToBuy(!onlyToBuy)}>
           À racheter
         </Chip>
+        <Chip active={removing} onClick={() => setRemoving(!removing)}>
+          {removing ? "Terminé" : "Supprimer"}
+        </Chip>
       </div>
+      {removing && (
+        <>
+          <p className="hint">
+            Touche « Supprimer » sur les articles à enlever du stock. Annulable quelques secondes.
+          </p>
+          <BulkRemove
+            key={`${kind}-${query}-${onlyToBuy}`}
+            items={visibleItems}
+            label={query || onlyToBuy ? "ceux affichés" : `« ${KIND_LABELS[kind]} »`}
+          />
+        </>
+      )}
 
       <ErrorNote error={stock.error} />
       {stock.isPending && <Loading />}
@@ -333,7 +436,7 @@ export function StockPage() {
           <h2 className="eyebrow">{CATEGORY_LABELS[category]}</h2>
           <ul className="stock-list">
             {items.map((item) => (
-              <StockRow key={item.id} item={item} onEdit={() => setEditing(item)} />
+              <StockRow key={item.id} item={item} removing={removing} onEdit={() => setEditing(item)} />
             ))}
           </ul>
         </section>

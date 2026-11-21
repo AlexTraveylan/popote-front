@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react"
 
 import { usePlan, useOverview, useRecipes, useSuggestions } from "../api/hooks"
-import type { Recipe, RecipeTag } from "../api/schemas"
+import type { Recipe, RecipeTag, Season } from "../api/schemas"
 import { CookSheet } from "../components/CookSheet"
 import { RecipeCard } from "../components/RecipeCard"
 import { RecipeSheet } from "../components/RecipeSheet"
 import { Chip, Empty, ErrorNote, Loading } from "../components/ui"
-import { addDays, expiryLabel, relativeDay, today } from "../lib/dates"
-import { formatQuantity, SLOT_LABELS, TAG_LABELS } from "../lib/labels"
+import { addDays, expiryLabel, relativeDay, seasonOf, today } from "../lib/dates"
+import { formatQuantity, SEASON_OF, seasonLabel, SEASONS, SLOT_LABELS, TAG_LABELS } from "../lib/labels"
 import { useApp } from "../state/AppContext"
 
 const FOCUS_TAGS: RecipeTag[] = ["poisson", "vegetarien", "peruvien", "mijote", "dessert"]
@@ -17,10 +17,11 @@ export function TodayPage({ goTo }: { goTo: (page: string) => void }) {
   const [quick, setQuick] = useState(false)
   const [mine, setMine] = useState(false)
   const [tag, setTag] = useState<RecipeTag | null>(null)
+  const [season, setSeason] = useState<Season | null>(null)
   const [openedId, setOpenedId] = useState<string | null>(null)
   const [cooking, setCooking] = useState<Recipe | null>(null)
 
-  const suggestions = useSuggestions({ on: day, member, quick, mine, tag, limit: 12 })
+  const suggestions = useSuggestions({ on: day, member, quick, mine, tag, season, limit: 12 })
   const overview = useOverview(day)
   const plan = usePlan(day, day)
   const recipes = useRecipes()
@@ -135,6 +136,23 @@ export function TodayPage({ goTo }: { goTo: (page: string) => void }) {
             </Chip>
           ))}
         </div>
+        <div className="chips scroll-x">
+          {SEASONS.map((current) => (
+            <Chip
+              key={current}
+              active={season === current}
+              onClick={() => setSeason(season === current ? null : current)}
+            >
+              {seasonLabel(current)}
+            </Chip>
+          ))}
+        </div>
+        {season === null && (
+          <p className="hint">
+            Les recettes {SEASON_OF[seasonOf(day)]} passent en premier ; choisis une saison pour voir celles
+            d'une autre.
+          </p>
+        )}
         <ErrorNote error={suggestions.error} />
         {suggestions.isPending && <Loading />}
         {suggestions.data && suggestions.data.length === 0 && (

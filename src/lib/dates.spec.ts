@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest"
 
-import { addDays, daysBetween, expiryLabel, relativeDay } from "./dates"
-import { formatQuantity } from "./labels"
+import { addDays, daysBetween, expiryLabel, relativeDay, seasonOf } from "./dates"
+import { formatQuantity, seasonsSummary } from "./labels"
 import { resolveMember } from "./member"
 import { searchKey } from "./search"
 import { Option } from "effect"
 
 describe("dates", () => {
+  it("finds the meteorological season", () => {
+    expect(seasonOf("2026-11-21")).toBe("automne")
+    expect(seasonOf("2026-12-01")).toBe("hiver")
+    expect(seasonOf("2027-02-28")).toBe("hiver")
+    expect(seasonOf("2027-03-01")).toBe("printemps")
+    expect(seasonOf("2027-07-14")).toBe("ete")
+    expect(seasonsSummary([])).toBe("Toute l'année")
+  })
+
   it("adds days across months", () => {
     expect(addDays("2026-11-30", 1)).toBe("2026-12-01")
     expect(addDays("2026-03-01", -1)).toBe("2026-02-28")

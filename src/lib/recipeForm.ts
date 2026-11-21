@@ -10,6 +10,7 @@ export const emptyRecipe = (): RecipeFormValue => ({
   ingredients: [],
   steps: [],
   tags: [],
+  seasons: [],
   cooks: [],
   fans: [],
 })

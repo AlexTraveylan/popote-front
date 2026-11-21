@@ -452,6 +452,18 @@ textarea {
   gap: 10px;
 }
 
+.card-meta {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.season-icons {
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
 .minutes {
   flex: none;
   font-size: 0.85rem;
@@ -848,6 +860,18 @@ textarea {
 
 .stock-row .stepper {
   grid-area: qty;
+}
+
+.remove-item {
+  grid-area: low;
+  justify-self: end;
+}
+
+.bulk-remove {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .low-check {

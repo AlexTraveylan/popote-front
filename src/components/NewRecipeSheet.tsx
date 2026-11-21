@@ -2,24 +2,27 @@ import { useState } from "react"
 
 import { api } from "../api/client"
 import { useApiMutation } from "../api/hooks"
-import type { RecipeContent } from "../api/schemas"
+import type { RecipeContent, Season } from "../api/schemas"
 import { useApp } from "../state/AppContext"
+import { seasonOf } from "../lib/dates"
+import { seasonLabel, SEASONS } from "../lib/labels"
 import { emptyRecipe, type RecipeFormValue } from "../lib/recipeForm"
 import { RecipeForm } from "./RecipeForm"
 import { Sheet } from "./Sheet"
-import { ErrorNote } from "./ui"
+import { Chip, ErrorNote } from "./ui"
 
 type Tab = "chatgpt" | "manual"
 
 export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
-  const { member, members, generationEnabled, notify } = useApp()
+  const { member, members, day, generationEnabled, notify } = useApp()
   const [tab, setTab] = useState<Tab>(generationEnabled ? "chatgpt" : "manual")
   const [request, setRequest] = useState("")
   const [quick, setQuick] = useState(false)
   const [useStock, setUseStock] = useState(true)
+  const [season, setSeason] = useState<Season>(seasonOf(day))
   const [draft, setDraft] = useState<RecipeContent | null>(null)
 
-  const generate = useApiMutation(() => api.draftRecipe(request.trim(), member, quick, useStock))
+  const generate = useApiMutation(() => api.draftRecipe(request.trim(), member, quick, useStock, season))
   const create = useApiMutation((value: RecipeFormValue) =>
     api.createRecipe({ ...value, source: draft ? "chatgpt" : "manuel" }),
   )
@@ -33,7 +36,7 @@ export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
     })
 
   const formInitial: RecipeFormValue = draft
-    ? { ...draft, tags: [...draft.tags], cooks: [member], fans: [member] }
+    ? { ...draft, tags: [...draft.tags], seasons: [...draft.seasons], cooks: [member], fans: [member] }
     : { ...emptyRecipe(), cooks: [member], fans: [member] }
 
   return (
@@ -70,11 +73,21 @@ export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
             <textarea
               id="draft-request"
               rows={3}
-              placeholder="Ex. un plat de saison avec du panais, un dessert sans four, une idée péruvienne pour 6…"
+              placeholder="Ex. un plat avec du panais, un dessert sans four, une idée péruvienne pour 6…"
               value={request}
               onChange={(event) => setRequest(event.target.value)}
             />
           </label>
+          <fieldset className="field">
+            <legend>Pour quelle saison ?</legend>
+            <div className="chips">
+              {SEASONS.map((current) => (
+                <Chip key={current} active={season === current} onClick={() => setSeason(current)}>
+                  {seasonLabel(current)}
+                </Chip>
+              ))}
+            </div>
+          </fieldset>
           <label className="check">
             <input type="checkbox" checked={quick} onChange={(event) => setQuick(event.target.checked)} />
             Rapide (moins de 30 min)

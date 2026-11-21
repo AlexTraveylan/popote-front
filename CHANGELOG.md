@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-11-21
+
+- Stock : mode « Supprimer » avec un bouton par article, « Tout supprimer » pour la famille affichée,
+  et annulation depuis le message de confirmation.
+- Recettes : saisons (🌱 ☀️ 🍂 ❄️) dans le formulaire, la fiche et les cartes ; filtre par saison.
+- Aujourd'hui : filtre par saison, les recettes de la saison en cours passent devant.
+- Nouvelle recette ChatGPT : choix de la saison visée.
+
 ## 0.1.0 — 2026-11-21
 
 - Première version : écrans Aujourd'hui (suggestions selon le frigo, à finir vite, repas prévus), Recettes

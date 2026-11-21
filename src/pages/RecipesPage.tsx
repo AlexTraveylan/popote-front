@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react"
 
 import { useRecipes } from "../api/hooks"
-import type { Recipe, RecipeTag } from "../api/schemas"
+import type { Recipe, RecipeTag, Season } from "../api/schemas"
 import { NewRecipeSheet } from "../components/NewRecipeSheet"
 import { RecipeCard } from "../components/RecipeCard"
 import { RecipeSheet } from "../components/RecipeSheet"
 import { Chip, Empty, ErrorNote, Loading } from "../components/ui"
-import { RECIPE_TAGS, TAG_LABELS } from "../lib/labels"
+import { RECIPE_TAGS, seasonLabel, SEASONS, TAG_LABELS } from "../lib/labels"
 import { searchKey } from "../lib/search"
 import { useApp } from "../state/AppContext"
 
@@ -19,6 +19,7 @@ export function RecipesPage() {
   const [scope, setScope] = useState<Scope>("all")
   const [quick, setQuick] = useState(false)
   const [tag, setTag] = useState<RecipeTag | null>(null)
+  const [season, setSeason] = useState<Season | null>(null)
   const [openedId, setOpenedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -34,9 +35,10 @@ export function RecipesPage() {
       if (scope === "likes" && !recipe.fans.includes(member)) return false
       if (scope === "cooks" && !recipe.cooks.includes(member)) return false
       if (quick && !recipe.is_quick) return false
+      if (season !== null && recipe.seasons.length > 0 && !recipe.seasons.includes(season)) return false
       return tag === null || recipe.tags.includes(tag)
     })
-  }, [recipes.data, query, scope, quick, tag, member])
+  }, [recipes.data, query, scope, quick, tag, season, member])
 
   const opened: Recipe | undefined = recipes.data?.find((recipe) => recipe.id === openedId)
 
@@ -74,6 +76,17 @@ export function RecipesPage() {
         <Chip active={quick} onClick={() => setQuick(!quick)}>
           Rapide
         </Chip>
+      </div>
+      <div className="chips scroll-x">
+        {SEASONS.map((current) => (
+          <Chip
+            key={current}
+            active={season === current}
+            onClick={() => setSeason(season === current ? null : current)}
+          >
+            {seasonLabel(current)}
+          </Chip>
+        ))}
       </div>
       <div className="chips scroll-x">
         {RECIPE_TAGS.filter((current) => current !== "rapide").map((current) => (

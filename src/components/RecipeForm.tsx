@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react"
 
-import type { RecipeIngredient, RecipeTag } from "../api/schemas"
-import { RECIPE_TAGS, TAG_LABELS } from "../lib/labels"
+import type { RecipeIngredient, RecipeTag, Season } from "../api/schemas"
+import { RECIPE_TAGS, seasonLabel, SEASONS, TAG_LABELS } from "../lib/labels"
 import type { RecipeFormValue } from "../lib/recipeForm"
 import { Chip } from "./ui"
 
@@ -55,6 +55,7 @@ export function RecipeForm({
   )
   const [steps, setSteps] = useState(initial.steps.join("\n"))
   const [tags, setTags] = useState<RecipeTag[]>([...initial.tags])
+  const [seasons, setSeasons] = useState<Season[]>([...initial.seasons])
   const [cooks, setCooks] = useState<string[]>([...initial.cooks])
   const [fans, setFans] = useState<string[]>([...initial.fans])
 
@@ -74,6 +75,7 @@ export function RecipeForm({
         .map((step) => step.trim())
         .filter(Boolean),
       tags,
+      seasons: SEASONS.filter((season) => seasons.includes(season)),
       cooks,
       fans,
     })
@@ -188,6 +190,22 @@ export function RecipeForm({
             </Chip>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend>Saisons</legend>
+        <div className="chips">
+          {SEASONS.map((season) => (
+            <Chip
+              key={season}
+              active={seasons.includes(season)}
+              onClick={() => setSeasons((current) => toggle(current, season))}
+            >
+              {seasonLabel(season)}
+            </Chip>
+          ))}
+        </div>
+        <p className="hint">Aucune saison cochée : la recette se fait toute l'année.</p>
       </fieldset>
 
       {showMembers && (

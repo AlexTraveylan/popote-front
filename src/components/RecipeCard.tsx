@@ -1,5 +1,5 @@
 import type { Recipe, RecipeAvailability } from "../api/schemas"
-import { TAG_LABELS } from "../lib/labels"
+import { SEASON_ICONS, seasonsSummary, TAG_LABELS } from "../lib/labels"
 import { AvailabilityBar, Badge } from "./ui"
 
 type RecipeCardProps = {
@@ -19,7 +19,14 @@ export function RecipeCard({ recipe, member, availability, reasons, onOpen, onCo
       <button type="button" className="card-main" onClick={onOpen}>
         <div className="card-title-row">
           <h3>{recipe.title}</h3>
-          <span className={`minutes ${recipe.is_quick ? "is-quick" : ""}`}>{recipe.prep_minutes} min</span>
+          <span className="card-meta">
+            {recipe.seasons.length > 0 && (
+              <span className="season-icons" title={seasonsSummary(recipe.seasons)}>
+                {recipe.seasons.map((season) => SEASON_ICONS[season]).join("")}
+              </span>
+            )}
+            <span className={`minutes ${recipe.is_quick ? "is-quick" : ""}`}>{recipe.prep_minutes} min</span>
+          </span>
         </div>
         <div className="badges">
           {likes && <Badge tone="love">♥ {member}</Badge>}

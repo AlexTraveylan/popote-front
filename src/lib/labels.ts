@@ -1,4 +1,4 @@
-import type { MealSlot, RecipeTag, ShoppingChannel, StockCategory, StockKind } from "../api/schemas"
+import type { MealSlot, RecipeTag, Season, ShoppingChannel, StockCategory, StockKind } from "../api/schemas"
 
 export const KIND_LABELS: Record<StockKind, string> = {
   ingredient: "Cuisine",
@@ -55,10 +55,37 @@ export const TAG_LABELS: Record<RecipeTag, string> = {
   a_congeler: "Se congèle",
   invites: "Invités",
   enfants: "Enfants",
-  saison: "Saison",
   dessert: "Dessert",
   petit_dej: "Petit-déj",
 }
+
+export const SEASON_LABELS: Record<Season, string> = {
+  printemps: "Printemps",
+  ete: "Été",
+  automne: "Automne",
+  hiver: "Hiver",
+}
+
+export const SEASON_ICONS: Record<Season, string> = {
+  printemps: "🌱",
+  ete: "☀️",
+  automne: "🍂",
+  hiver: "❄️",
+}
+
+export const SEASON_OF: Record<Season, string> = {
+  printemps: "de printemps",
+  ete: "d'été",
+  automne: "d'automne",
+  hiver: "d'hiver",
+}
+
+export const SEASONS: Season[] = ["printemps", "ete", "automne", "hiver"]
+
+export const seasonLabel = (season: Season): string => `${SEASON_ICONS[season]} ${SEASON_LABELS[season]}`
+
+export const seasonsSummary = (seasons: readonly Season[]): string =>
+  seasons.length === 0 ? "Toute l'année" : seasons.map(seasonLabel).join(" · ")
 
 export const STOCK_KINDS: StockKind[] = ["ingredient", "basique", "petit_dej_gouter", "fruit", "maison"]
 export const MEAL_SLOTS: MealSlot[] = ["petit_dej", "midi", "gouter", "soir"]

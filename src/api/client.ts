@@ -12,6 +12,7 @@ import {
   type MealSlot,
   type RecipeSource,
   type RecipeTag,
+  type Season,
   ShoppingTrip,
   StockItem,
   type StockCategory,
@@ -122,6 +123,7 @@ export type SuggestionQuery = {
   quick?: boolean
   mine?: boolean
   tag?: RecipeTag | null
+  season?: Season | null
   limit?: number
 }
 
@@ -147,9 +149,9 @@ export const api = {
   deleteRecipe: (id: string) => empty("DELETE", `/recipes/${id}`),
   availability: (id: string, on: string) =>
     decoded(RecipeAvailability, "GET", `/recipes/${id}/availability`, { query: { on } }),
-  draftRecipe: (request: string, member: string | null, quick: boolean, useStock: boolean) =>
+  draftRecipe: (request: string, member: string | null, quick: boolean, useStock: boolean, season: Season) =>
     decoded(RecipeContent, "POST", "/recipes/drafts", {
-      body: { request, member, quick, use_stock: useStock },
+      body: { request, member, quick, use_stock: useStock, season },
     }),
   draftRework: (id: string, instruction: string, member: string | null) =>
     decoded(RecipeContent, "POST", `/recipes/${id}/drafts`, { body: { instruction, member } }),

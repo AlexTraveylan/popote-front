@@ -4,7 +4,7 @@ import { api } from "../api/client"
 import { useApiMutation, useAvailability } from "../api/hooks"
 import type { MealSlot, Recipe, RecipeContent } from "../api/schemas"
 import { addDays } from "../lib/dates"
-import { formatQuantity, MEAL_SLOTS, SLOT_LABELS, TAG_LABELS } from "../lib/labels"
+import { formatQuantity, MEAL_SLOTS, seasonsSummary, SLOT_LABELS, TAG_LABELS } from "../lib/labels"
 import { useApp } from "../state/AppContext"
 import { CookSheet } from "./CookSheet"
 import { type RecipeFormValue } from "../lib/recipeForm"
@@ -58,7 +58,13 @@ export function RecipeSheet({ recipe, onClose }: { recipe: Recipe; onClose: () =
         {draft && <p className="hint">Relis et ajuste avant de remplacer la recette actuelle.</p>}
         <ErrorNote error={save.error ?? saveMembers.error} />
         <RecipeForm
-          initial={{ ...base, tags: [...base.tags], cooks: [...recipe.cooks], fans: [...recipe.fans] }}
+          initial={{
+            ...base,
+            tags: [...base.tags],
+            seasons: [...base.seasons],
+            cooks: [...recipe.cooks],
+            fans: [...recipe.fans],
+          }}
           members={members}
           submitLabel={draft ? "Remplacer la recette" : "Enregistrer"}
           pending={save.isPending || saveMembers.isPending}
@@ -82,6 +88,7 @@ export function RecipeSheet({ recipe, onClose }: { recipe: Recipe; onClose: () =
             {TAG_LABELS[tag]}
           </Badge>
         ))}
+        <Badge>{seasonsSummary(recipe.seasons)}</Badge>
       </div>
 
       <div className="toggle-row">

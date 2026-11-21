@@ -38,11 +38,13 @@ export const RecipeTag = Schema.Literal(
   "a_congeler",
   "invites",
   "enfants",
-  "saison",
   "dessert",
   "petit_dej",
 )
 export type RecipeTag = typeof RecipeTag.Type
+
+export const Season = Schema.Literal("printemps", "ete", "automne", "hiver")
+export type Season = typeof Season.Type
 
 export const RecipeSource = Schema.Literal("seed", "manuel", "chatgpt", "claude")
 export type RecipeSource = typeof RecipeSource.Type
@@ -84,6 +86,7 @@ export const RecipeContent = Schema.Struct({
   ingredients: Schema.Array(RecipeIngredient),
   steps: Schema.Array(Schema.String),
   tags: Schema.Array(RecipeTag),
+  seasons: Schema.Array(Season),
 })
 export type RecipeContent = typeof RecipeContent.Type
 

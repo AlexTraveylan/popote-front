@@ -1,3 +1,5 @@
+import type { Season } from "../api/schemas"
+
 const pad = (value: number): string => String(value).padStart(2, "0")
 
 export const toIsoDate = (date: Date): string =>
@@ -43,3 +45,8 @@ export const expiryLabel = (iso: string, reference: string): string => {
   if (delta === 1) return "à finir demain"
   return `encore ${delta} j`
 }
+
+const SEASONS_BY_QUARTER: readonly Season[] = ["hiver", "printemps", "ete", "automne"]
+
+export const seasonOf = (iso: string): Season =>
+  SEASONS_BY_QUARTER[Math.floor(((fromIsoDate(iso).getMonth() + 1) % 12) / 3)] ?? "hiver"
