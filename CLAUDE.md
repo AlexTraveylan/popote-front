@@ -17,7 +17,7 @@ Front React de Popote (le back-end et la doc métier sont dans `popote-back/docs
 | `src/api/client.ts`       | Client HTTP en `Effect` (`ApiError` taggée, décodage des réponses), `runApi` pour TanStack Query    |
 | `src/api/hooks.ts`        | Hooks `useQuery` ; `useApiMutation` invalide tout le cache après une écriture                       |
 | `src/state/AppContext.ts` | Membre courant (localStorage via `lib/member.ts`), jour affiché, toasts                             |
-| `src/pages/*`             | Aujourd'hui, Recettes, Stock, Semaine, Courses (navigation par `#hash`)                             |
+| `src/pages/*`             | Aujourd'hui, Recettes, Stock, Courses (navigation par `#hash`)                                      |
 | `src/components/*`        | Feuilles modales (recette, cuisiner, nouvelle recette), formulaire de recette, petits composants    |
 | `src/styles.css`          | Tokens de couleur (clair/sombre) et styles, mobile d'abord                                          |
 

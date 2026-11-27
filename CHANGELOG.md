@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-11-27
+
+- Onglet Semaine et planning retirés ; Aujourd'hui n'a plus de navigation par jour.
+- Aujourd'hui : compteur des recettes possibles avec le stock, filtre « J'ai tout » (actif par défaut), filtre « J'aime ».
+- Bouton « ✨ Une idée de ChatGPT avec ce qu'on a » : envie facultative, saison, seulement avec le stock.
+- Fiche recette : « J'ai cuisiné ça aujourd'hui » en un geste (annulable), « J'aime » / « J'aime pas » ;
+  Modifier, Retoucher et Supprimer seulement depuis l'onglet Recettes.
+- Recettes : filtres J'aime / J'aime pas ; « sait la faire » retiré de l'interface.
+
 ## 0.2.1 — 2026-11-21
 
 - Stock : « + Nouvel article » pour suivre un nouvel article sans l'acheter, au choix juste avec « bientôt plus »

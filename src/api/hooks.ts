@@ -22,12 +22,6 @@ export const useAvailability = (recipeId: string, day: string) =>
     queryFn: () => runApi(api.availability(recipeId, day)),
   })
 
-export const useWeekLogs = (day: string) =>
-  useQuery({ queryKey: ["week", day], queryFn: () => runApi(api.weekLogs(day)) })
-
-export const usePlan = (start: string, end: string) =>
-  useQuery({ queryKey: ["plan", start, end], queryFn: () => runApi(api.plan(start, end)) })
-
 export const useTrips = () => useQuery({ queryKey: ["trips"], queryFn: () => runApi(api.trips()) })
 
 export const useNotes = () => useQuery({ queryKey: ["notes"], queryFn: () => runApi(api.notes()) })

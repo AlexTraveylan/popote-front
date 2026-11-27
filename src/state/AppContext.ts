@@ -7,7 +7,6 @@ export type AppState = {
   members: readonly string[]
   generationEnabled: boolean
   day: string
-  setDay: (day: string) => void
   switchMember: () => void
   notify: (toast: Toast) => void
 }

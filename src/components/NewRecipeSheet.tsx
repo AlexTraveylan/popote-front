@@ -3,26 +3,36 @@ import { useState } from "react"
 import { api } from "../api/client"
 import { useApiMutation } from "../api/hooks"
 import type { RecipeContent, Season } from "../api/schemas"
-import { useApp } from "../state/AppContext"
 import { seasonOf } from "../lib/dates"
 import { seasonLabel, SEASONS } from "../lib/labels"
 import { emptyRecipe, type RecipeFormValue } from "../lib/recipeForm"
+import { useApp } from "../state/AppContext"
 import { RecipeForm } from "./RecipeForm"
 import { Sheet } from "./Sheet"
 import { Chip, ErrorNote } from "./ui"
 
 type Tab = "chatgpt" | "manual"
 
-export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
+export function NewRecipeSheet({ magic = false, onClose }: { magic?: boolean; onClose: () => void }) {
   const { member, members, day, generationEnabled, notify } = useApp()
-  const [tab, setTab] = useState<Tab>(generationEnabled ? "chatgpt" : "manual")
+  const [tab, setTab] = useState<Tab>(magic || generationEnabled ? "chatgpt" : "manual")
   const [request, setRequest] = useState("")
   const [quick, setQuick] = useState(false)
   const [useStock, setUseStock] = useState(true)
+  const [stockOnly, setStockOnly] = useState(magic)
   const [season, setSeason] = useState<Season>(seasonOf(day))
   const [draft, setDraft] = useState<RecipeContent | null>(null)
 
-  const generate = useApiMutation(() => api.draftRecipe(request.trim(), member, quick, useStock, season))
+  const generate = useApiMutation(() =>
+    api.draftRecipe({
+      request: request.trim(),
+      member,
+      quick,
+      useStock: useStock || stockOnly,
+      stockOnly,
+      season,
+    }),
+  )
   const create = useApiMutation((value: RecipeFormValue) =>
     api.createRecipe({ ...value, source: draft ? "chatgpt" : "manuel" }),
   )
@@ -35,41 +45,50 @@ export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
       },
     })
 
+  const owners = magic ? { cooks: [], fans: [] } : { cooks: [member], fans: [member] }
   const formInitial: RecipeFormValue = draft
-    ? { ...draft, tags: [...draft.tags], seasons: [...draft.seasons], cooks: [member], fans: [member] }
-    : { ...emptyRecipe(), cooks: [member], fans: [member] }
+    ? { ...draft, tags: [...draft.tags], seasons: [...draft.seasons], ...owners }
+    : { ...emptyRecipe(), ...owners }
 
   return (
-    <Sheet title="Nouvelle recette" onClose={onClose}>
-      <div className="segmented" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "chatgpt"}
-          className={tab === "chatgpt" ? "is-active" : ""}
-          disabled={!generationEnabled}
-          onClick={() => setTab("chatgpt")}
-        >
-          Avec ChatGPT
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "manual"}
-          className={tab === "manual" ? "is-active" : ""}
-          onClick={() => setTab("manual")}
-        >
-          À la main
-        </button>
-      </div>
+    <Sheet title={magic ? "✨ Une idée avec ce qu'on a" : "Nouvelle recette"} onClose={onClose}>
+      {!magic && (
+        <div className="segmented" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "chatgpt"}
+            className={tab === "chatgpt" ? "is-active" : ""}
+            disabled={!generationEnabled}
+            onClick={() => setTab("chatgpt")}
+          >
+            Avec ChatGPT
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "manual"}
+            className={tab === "manual" ? "is-active" : ""}
+            onClick={() => setTab("manual")}
+          >
+            À la main
+          </button>
+        </div>
+      )}
       {!generationEnabled && (
         <p className="hint">ChatGPT n'est pas configuré : ajoute OPENAI_API_KEY dans le .env du back-end.</p>
       )}
 
       {tab === "chatgpt" && draft === null && (
         <div className="form">
+          {magic && (
+            <p className="hint">
+              ChatGPT regarde le stock et les goûts de chacun, puis propose une recette. Tu peux préciser une
+              envie.
+            </p>
+          )}
           <label className="field">
-            <span>Ce que tu as envie de manger</span>
+            <span>{magic ? "Une envie ? (facultatif)" : "Ce que tu as envie de manger"}</span>
             <textarea
               id="draft-request"
               rows={3}
@@ -89,25 +108,35 @@ export function NewRecipeSheet({ onClose }: { onClose: () => void }) {
             </div>
           </fieldset>
           <label className="check">
-            <input type="checkbox" checked={quick} onChange={(event) => setQuick(event.target.checked)} />
-            Rapide (moins de 30 min)
-          </label>
-          <label className="check">
             <input
               type="checkbox"
-              checked={useStock}
-              onChange={(event) => setUseStock(event.target.checked)}
+              checked={stockOnly}
+              onChange={(event) => setStockOnly(event.target.checked)}
             />
-            Utiliser ce qu'il y a dans le frigo
+            Seulement avec ce qu'il y a (rien à acheter)
+          </label>
+          {!stockOnly && (
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={useStock}
+                onChange={(event) => setUseStock(event.target.checked)}
+              />
+              Utiliser en priorité ce qu'il y a dans le frigo
+            </label>
+          )}
+          <label className="check">
+            <input type="checkbox" checked={quick} onChange={(event) => setQuick(event.target.checked)} />
+            Rapide (moins de 30 min)
           </label>
           <ErrorNote error={generate.error} />
           <button
             type="button"
             className="button primary"
-            disabled={generate.isPending || request.trim().length < 3}
+            disabled={!generationEnabled || generate.isPending}
             onClick={() => generate.mutate(undefined, { onSuccess: setDraft })}
           >
-            {generate.isPending ? "ChatGPT cherche une idée…" : "Faire apparaître une recette"}
+            {generate.isPending ? "ChatGPT cherche une idée…" : "✨ Trouver une recette"}
           </button>
         </div>
       )}

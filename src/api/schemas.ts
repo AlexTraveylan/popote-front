@@ -25,9 +25,6 @@ export const StockCategory = Schema.Literal(
 )
 export type StockCategory = typeof StockCategory.Type
 
-export const MealSlot = Schema.Literal("petit_dej", "midi", "gouter", "soir")
-export type MealSlot = typeof MealSlot.Type
-
 export const RecipeTag = Schema.Literal(
   "rapide",
   "vegetarien",
@@ -95,10 +92,13 @@ export const Recipe = Schema.Struct({
   id: Schema.String,
   cooks: Schema.Array(Schema.String),
   fans: Schema.Array(Schema.String),
+  dislikes: Schema.Array(Schema.String),
   source: RecipeSource,
   is_quick: Schema.Boolean,
 })
 export type Recipe = typeof Recipe.Type
+
+export const PreferenceOutcome = Schema.Struct({ recipe: Recipe, deleted: Schema.Boolean })
 
 export const IngredientCheck = Schema.Struct({
   name: Schema.String,
@@ -116,6 +116,7 @@ export const RecipeAvailability = Schema.Struct({
   available_count: Schema.Number,
   ratio: Schema.Number,
   missing: Schema.Array(Schema.String),
+  cookable: Schema.Boolean,
   expiring: Schema.Array(Schema.String),
 })
 export type RecipeAvailability = typeof RecipeAvailability.Type
@@ -147,16 +148,6 @@ export const CookLog = Schema.Struct({
   missing: Schema.Array(Schema.String),
 })
 export type CookLog = typeof CookLog.Type
-
-export const PlannedMeal = Schema.Struct({
-  id: Schema.String,
-  planned_on: Schema.String,
-  slot: MealSlot,
-  recipe_id: Schema.String,
-  cook: Nullable(Schema.String),
-  note: Schema.String,
-})
-export type PlannedMeal = typeof PlannedMeal.Type
 
 export const StockLine = Schema.Struct({
   name: Schema.String,

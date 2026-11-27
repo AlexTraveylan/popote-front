@@ -1,4 +1,4 @@
-import type { MealSlot, RecipeTag, Season, ShoppingChannel, StockCategory, StockKind } from "../api/schemas"
+import type { RecipeTag, Season, ShoppingChannel, StockCategory, StockKind } from "../api/schemas"
 
 export const KIND_LABELS: Record<StockKind, string> = {
   ingredient: "Cuisine",
@@ -36,13 +36,6 @@ export const CHANNEL_LABELS: Record<ShoppingChannel, string> = {
   drive: "Drive",
   marche: "Marché",
   autre: "Autre fournisseur",
-}
-
-export const SLOT_LABELS: Record<MealSlot, string> = {
-  petit_dej: "Petit-déj",
-  midi: "Midi",
-  gouter: "Goûter",
-  soir: "Soir",
 }
 
 export const TAG_LABELS: Record<RecipeTag, string> = {
@@ -88,7 +81,6 @@ export const seasonsSummary = (seasons: readonly Season[]): string =>
   seasons.length === 0 ? "Toute l'année" : seasons.map(seasonLabel).join(" · ")
 
 export const STOCK_KINDS: StockKind[] = ["ingredient", "basique", "petit_dej_gouter", "fruit", "maison"]
-export const MEAL_SLOTS: MealSlot[] = ["petit_dej", "midi", "gouter", "soir"]
 export const RECIPE_TAGS = Object.keys(TAG_LABELS) as RecipeTag[]
 export const STOCK_CATEGORIES = Object.keys(CATEGORY_LABELS) as StockCategory[]
 

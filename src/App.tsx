@@ -9,14 +9,12 @@ import { RecipesPage } from "./pages/RecipesPage"
 import { ShoppingPage } from "./pages/ShoppingPage"
 import { StockPage } from "./pages/StockPage"
 import { TodayPage } from "./pages/TodayPage"
-import { WeekPage } from "./pages/WeekPage"
 import { AppContext, type AppState, type Toast } from "./state/AppContext"
 
 const PAGES = [
   { id: "aujourdhui", label: "Aujourd'hui", icon: "☀" },
   { id: "recettes", label: "Recettes", icon: "📖" },
   { id: "stock", label: "Stock", icon: "🧺" },
-  { id: "semaine", label: "Semaine", icon: "🗓" },
   { id: "courses", label: "Courses", icon: "🛒" },
 ] as const
 
@@ -50,7 +48,6 @@ export function App() {
   const household = useHousehold()
   const [stored, setStored] = useState(readStoredMember)
   const [page, setPage] = useState<PageId>(pageFromHash)
-  const [day, setDay] = useState(today)
   const [toast, setToast] = useState<Toast | null>(null)
 
   useEffect(() => {
@@ -64,10 +61,6 @@ export function App() {
     const timer = window.setTimeout(() => setToast(null), toast.onAction ? 8000 : 4000)
     return () => window.clearTimeout(timer)
   }, [toast])
-
-  const goTo = useCallback((next: string) => {
-    window.location.hash = next
-  }, [])
 
   const members = useMemo(() => household.data?.members ?? [], [household.data])
   const member = resolveMember(stored, members)
@@ -85,12 +78,11 @@ export function App() {
             member,
             members,
             generationEnabled: household.data?.recipe_generation_enabled ?? false,
-            day,
-            setDay,
+            day: today(),
             switchMember: () => pick(null),
             notify: setToast,
           },
-    [member, members, household.data, day, pick],
+    [member, members, household.data, pick],
   )
 
   if (household.isPending) return <Loading label="Connexion à Popote…" />
@@ -117,10 +109,9 @@ export function App() {
           </button>
         </header>
         <main className="content">
-          {page === "aujourdhui" && <TodayPage goTo={goTo} />}
+          {page === "aujourdhui" && <TodayPage />}
           {page === "recettes" && <RecipesPage />}
           {page === "stock" && <StockPage />}
-          {page === "semaine" && <WeekPage />}
           {page === "courses" && <ShoppingPage />}
         </main>
         <nav className="bottom-nav" aria-label="Navigation">

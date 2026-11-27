@@ -10,7 +10,7 @@ import { RECIPE_TAGS, seasonLabel, SEASONS, TAG_LABELS } from "../lib/labels"
 import { searchKey } from "../lib/search"
 import { useApp } from "../state/AppContext"
 
-type Scope = "all" | "mine" | "likes" | "cooks"
+type Scope = "all" | "likes" | "dislikes"
 
 export function RecipesPage() {
   const { member } = useApp()
@@ -31,9 +31,8 @@ export function RecipesPage() {
         !searchKey(`${recipe.title} ${recipe.ingredients.map((i) => i.name).join(" ")}`).includes(needle)
       )
         return false
-      if (scope === "mine" && !recipe.cooks.includes(member) && !recipe.fans.includes(member)) return false
       if (scope === "likes" && !recipe.fans.includes(member)) return false
-      if (scope === "cooks" && !recipe.cooks.includes(member)) return false
+      if (scope === "dislikes" && !recipe.dislikes.includes(member)) return false
       if (quick && !recipe.is_quick) return false
       if (season !== null && recipe.seasons.length > 0 && !recipe.seasons.includes(season)) return false
       return tag === null || recipe.tags.includes(tag)
@@ -64,14 +63,11 @@ export function RecipesPage() {
         <Chip active={scope === "all"} onClick={() => setScope("all")}>
           Toutes
         </Chip>
-        <Chip active={scope === "mine"} onClick={() => setScope("mine")}>
-          Les miennes
-        </Chip>
         <Chip active={scope === "likes"} onClick={() => setScope("likes")}>
           J'aime
         </Chip>
-        <Chip active={scope === "cooks"} onClick={() => setScope("cooks")}>
-          Je sais faire
+        <Chip active={scope === "dislikes"} onClick={() => setScope("dislikes")}>
+          J'aime pas
         </Chip>
         <Chip active={quick} onClick={() => setQuick(!quick)}>
           Rapide
@@ -112,7 +108,7 @@ export function RecipesPage() {
         ))}
       </div>
 
-      {opened && <RecipeSheet key={opened.id} recipe={opened} onClose={() => setOpenedId(null)} />}
+      {opened && <RecipeSheet key={opened.id} recipe={opened} manage onClose={() => setOpenedId(null)} />}
       {creating && <NewRecipeSheet onClose={() => setCreating(false)} />}
     </div>
   )

@@ -5,11 +5,10 @@ import {
   Household,
   HouseholdNote,
   PantryOverview,
-  PlannedMeal,
+  PreferenceOutcome,
   Recipe,
   RecipeAvailability,
   RecipeContent,
-  type MealSlot,
   type RecipeSource,
   type RecipeTag,
   type Season,
@@ -117,11 +116,22 @@ export type StockPatch = Partial<Omit<NewStockItem, "quantity" | "expires_on">> 
 
 export type RecipeInput = RecipeContent & { cooks: string[]; fans: string[]; source?: RecipeSource }
 
+export type PreferenceChange = { likes?: boolean; dislikes?: boolean }
+
+export type DraftRequest = {
+  request: string
+  member: string | null
+  quick: boolean
+  useStock: boolean
+  stockOnly: boolean
+  season: Season
+}
+
 export type SuggestionQuery = {
   on: string
   member?: string | null
   quick?: boolean
-  mine?: boolean
+  liked?: boolean
   tag?: RecipeTag | null
   season?: Season | null
   limit?: number
@@ -142,16 +152,21 @@ export const api = {
   createRecipe: (input: RecipeInput) => decoded(Recipe, "POST", "/recipes", { body: input }),
   replaceRecipe: (id: string, content: RecipeContent) =>
     decoded(Recipe, "PUT", `/recipes/${id}`, { body: content }),
-  setRecipeMembers: (id: string, cooks: readonly string[], fans: readonly string[]) =>
-    decoded(Recipe, "PUT", `/recipes/${id}/members`, { body: { cooks, fans } }),
-  setPreference: (id: string, member: string, change: { can_cook?: boolean; likes?: boolean }) =>
-    decoded(Recipe, "PUT", `/recipes/${id}/preferences`, { body: { member, ...change } }),
+  setPreference: (id: string, member: string, change: PreferenceChange) =>
+    decoded(PreferenceOutcome, "PUT", `/recipes/${id}/preferences`, { body: { member, ...change } }),
   deleteRecipe: (id: string) => empty("DELETE", `/recipes/${id}`),
   availability: (id: string, on: string) =>
     decoded(RecipeAvailability, "GET", `/recipes/${id}/availability`, { query: { on } }),
-  draftRecipe: (request: string, member: string | null, quick: boolean, useStock: boolean, season: Season) =>
+  draftRecipe: (draft: DraftRequest) =>
     decoded(RecipeContent, "POST", "/recipes/drafts", {
-      body: { request, member, quick, use_stock: useStock, season },
+      body: {
+        request: draft.request,
+        member: draft.member,
+        quick: draft.quick,
+        use_stock: draft.useStock,
+        stock_only: draft.stockOnly,
+        season: draft.season,
+      },
     }),
   draftRework: (id: string, instruction: string, member: string | null) =>
     decoded(RecipeContent, "POST", `/recipes/${id}/drafts`, { body: { instruction, member } }),
@@ -161,16 +176,7 @@ export const api = {
   suggestions: (query: SuggestionQuery) =>
     decoded(Schema.Array(Suggestion), "GET", "/suggestions", { query }),
 
-  weekLogs: (on: string) => decoded(Schema.Array(CookLog), "GET", "/cook-logs/week", { query: { on } }),
   undoCook: (id: string) => empty("DELETE", `/cook-logs/${id}`),
-
-  plan: (start: string, end: string) =>
-    decoded(Schema.Array(PlannedMeal), "GET", "/plan", { query: { start, end } }),
-  planMeal: (plannedOn: string, slot: MealSlot, recipeId: string, cook: string | null) =>
-    decoded(PlannedMeal, "POST", "/plan", {
-      body: { planned_on: plannedOn, slot, recipe_id: recipeId, cook },
-    }),
-  removePlannedMeal: (id: string) => empty("DELETE", `/plan/${id}`),
 
   trips: () => decoded(Schema.Array(ShoppingTrip), "GET", "/shopping/trips"),
   notes: () => decoded(Schema.Array(HouseholdNote), "GET", "/notes"),
